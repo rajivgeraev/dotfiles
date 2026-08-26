@@ -85,13 +85,6 @@ else
 fi
 print_success "Dotfiles applied"
 
-SECRETS_FILE="$HOME/.config/zsh/.secret"
-if [[ ! -f "$SECRETS_FILE" ]]; then
-  mkdir -p "$(dirname "$SECRETS_FILE")"
-  touch "$SECRETS_FILE"
-  print_info "⚠️  Created empty $SECRETS_FILE — sync your secrets manually"
-fi
-
 # ==========================================
 # 4. Workspace
 # ==========================================
