@@ -1,0 +1,251 @@
+#!/bin/zsh
+
+set -euo pipefail
+
+# --- Colors ---
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+print_header()  { echo -e "\n${CYAN}${BOLD}==> $1${NC}\n"; }
+print_step()    { echo -e "${YELLOW}${BOLD}  -> $1${NC}"; }
+print_success() { echo -e "${GREEN}${BOLD}  ok $1${NC}"; }
+print_error()   { echo -e "${RED}${BOLD} err $1${NC}"; }
+print_info()    { echo -e "${BLUE}${BOLD}    $1${NC}"; }
+
+echo -e "${CYAN}${BOLD}🚀 Starting environment bootstrap...${NC}"
+
+# ==========================================
+# 0. Prerequisites
+# ==========================================
+print_header "🔧 Prerequisites"
+
+# Check Xcode Command Line Tools
+if ! xcode-select -p >/dev/null 2>&1; then
+  print_step "Installing Xcode Command Line Tools..."
+  xcode-select --install
+  print_info "Please click Install in the dialog, then press Enter"
+  read -r
+  while ! xcode-select -p >/dev/null 2>&1; do
+    sleep 2
+  done
+fi
+print_success "Xcode CLT ready"
+
+# ==========================================
+# 1. Homebrew
+# ==========================================
+print_header "🍺 Homebrew"
+if ! command -v brew >/dev/null 2>&1; then
+  print_step "Installing Homebrew..."
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+else
+  print_success "Homebrew already installed"
+fi
+
+# Load brew into current shell session
+if [[ -x "/opt/homebrew/bin/brew" ]]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [[ -x "/usr/local/bin/brew" ]]; then
+  eval "$(/usr/local/bin/brew shellenv)"
+fi
+
+if ! command -v brew >/dev/null 2>&1; then
+  print_error "Homebrew not found in PATH after install"
+  exit 1
+fi
+
+# ==========================================
+# 2. Homebrew Packages
+# ==========================================
+print_header "📦 Homebrew Packages"
+BREWFILE_PATH="$(cd "$(dirname "$0")" && pwd)/Brewfile"
+if [[ ! -f "$BREWFILE_PATH" ]]; then
+  print_error "Brewfile not found at $BREWFILE_PATH"
+  exit 1
+fi
+brew bundle --file="$BREWFILE_PATH"
+print_success "Brew packages synced"
+
+# ==========================================
+# 3. Dotfiles (chezmoi)
+# ==========================================
+print_header "📁 Dotfiles (chezmoi)"
+CHEZMOI_REPO="https://github.com/rajivgeraev/dotfiles.git"
+if command -v chezmoi >/dev/null 2>&1; then
+  chezmoi init "$CHEZMOI_REPO" --apply
+else
+  sh -c "$(curl -fsLS get.chezmoi.io)" -- init "$CHEZMOI_REPO" --apply
+fi
+print_success "Dotfiles applied"
+
+SECRETS_FILE="$HOME/.config/zsh/.secret"
+if [[ ! -f "$SECRETS_FILE" ]]; then
+  mkdir -p "$(dirname "$SECRETS_FILE")"
+  touch "$SECRETS_FILE"
+  print_info "⚠️  Created empty $SECRETS_FILE — sync your secrets manually"
+fi
+
+# ==========================================
+# 4. Workspace
+# ==========================================
+print_header "🏗️ Workspace"
+mkdir -p "$HOME/dev"
+print_success "$HOME/dev created"
+
+# ==========================================
+# 5. Git
+# ==========================================
+print_header "🔧 Git"
+git config --global user.name  "Rajiv Geraev"
+git config --global user.email "rajiv.geraev@gmail.com"
+git config --global core.excludesfile "$HOME/.gitignore_global"
+print_success "Git configured"
+
+# ==========================================
+# 6. GPG
+# ==========================================
+print_header "GPG"
+GNUPG_DIR="$HOME/.gnupg"
+GPG_AGENT_CONF="$GNUPG_DIR/gpg-agent.conf"
+mkdir -p "$GNUPG_DIR"
+chmod 700 "$GNUPG_DIR"
+
+PINENTRY_PATH="$(which pinentry-mac)"
+if [[ -n "$PINENTRY_PATH" ]]; then
+  if ! grep -q "pinentry-program" "$GPG_AGENT_CONF" 2>/dev/null; then
+    echo "pinentry-program $PINENTRY_PATH" >> "$GPG_AGENT_CONF"
+    print_success "pinentry-mac configured"
+  else
+    print_success "pinentry-mac already configured"
+  fi
+  killall gpg-agent 2>/dev/null || true
+  print_success "gpg-agent restarted"
+else
+  print_error "pinentry-mac not found"
+fi
+
+# ==========================================
+# 7. Node.js via fnm
+# ==========================================
+print_header "🟢 Node.js (fnm)"
+if ! command -v fnm >/dev/null 2>&1; then
+  print_error "fnm not found — ensure Brewfile was applied"
+  exit 1
+fi
+
+eval "$(fnm env --use-on-cd --version-file-strategy=recursive --resolve-engines --corepack-enabled --shell zsh)"
+
+print_step "Installing Node.js LTS..."
+fnm install --lts
+fnm default lts-latest
+print_success "Node.js $(node -v) ready"
+
+print_step "Enabling pnpm via Corepack..."
+corepack enable pnpm
+print_success "pnpm $(pnpm -v) enabled"
+
+# ==========================================
+# 8. Bun
+# ==========================================
+print_header "🍞 Bun"
+if ! command -v bun >/dev/null 2>&1; then
+  print_step "Installing Bun..."
+  curl -fsSL https://bun.sh/install | bash
+  export PATH="$HOME/.bun/bin:$PATH"
+  print_success "Bun installed"
+else
+  print_success "bun $(bun --version) found"
+fi
+
+# ==========================================
+# 9. uv (Python)
+# ==========================================
+print_header "⚡ uv (Python)"
+if ! command -v uv >/dev/null 2>&1; then
+  print_step "Installing uv..."
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  export PATH="$HOME/.local/bin:$PATH"
+  print_success "uv installed"
+else
+  print_success "$(uv --version) found"
+fi
+
+# ==========================================
+# 10. AI Coding Agents
+# ==========================================
+# Make user-local CLI install locations visible to this bootstrap run.
+export PATH="$HOME/.local/bin:$HOME/.amp/bin:$PATH"
+
+print_header "🤖 AI Coding Agents"
+
+# amp
+if ! command -v amp >/dev/null 2>&1; then
+  print_step "Installing amp..."
+  if curl -fsSL https://ampcode.com/install.sh | bash 2>/dev/null; then
+    export PATH="$HOME/.local/bin:$HOME/.amp/bin:$PATH"
+    print_success "amp installed"
+  else
+    print_info "amp failed (optional, skipping)"
+  fi
+else
+  print_success "amp found"
+fi
+
+# opencode
+if ! command -v opencode >/dev/null 2>&1; then
+  print_step "Installing opencode..."
+  if curl -fsSL https://opencode.ai/install | bash 2>/dev/null; then
+    print_success "opencode installed"
+  else
+    print_info "opencode failed (optional, skipping)"
+  fi
+else
+  print_success "opencode found"
+fi
+
+# claude (official installer)
+if ! command -v claude >/dev/null 2>&1; then
+  print_step "Installing claude..."
+  if curl -fsSL https://claude.ai/install.sh | bash 2>/dev/null; then
+    print_success "claude installed"
+  else
+    print_info "claude failed (optional, skipping)"
+  fi
+else
+  print_success "claude found"
+fi
+
+# Gemini CLI
+if ! command -v gemini >/dev/null 2>&1; then
+  print_step "Installing Gemini CLI..."
+  if curl -fsSL https://antigravity.google/cli/install.sh | bash 2>/dev/null; then
+    print_success "gemini installed"
+  else
+    print_info "gemini-cli failed (optional, skipping)"
+  fi
+else
+  print_success "gemini found"
+fi
+
+# Codex
+if ! command -v codex >/dev/null 2>&1; then
+  print_step "Installing Codex..."
+  if curl -fsSL https://chatgpt.com/codex/install.sh | sh 2>/dev/null; then
+    print_success "codex installed"
+  else
+    print_info "codex failed (optional, skipping)"
+  fi
+else
+  print_success "codex found"
+fi
+
+# ==========================================
+# Done
+# ==========================================
+echo -e "\n${GREEN}${BOLD}🎉 Bootstrap complete.${NC}"
+echo -e "${YELLOW}Run ${BOLD}source ~/.zshrc${NC}${YELLOW} or restart your terminal to apply changes.${NC}\n"
