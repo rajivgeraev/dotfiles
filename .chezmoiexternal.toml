@@ -14,11 +14,6 @@
     url = "https://raw.githubusercontent.com/catppuccin/bat/main/themes/Catppuccin%20Mocha.tmTheme"
     refreshPeriod = "720h"
 
-[".config/btop/themes/catppuccin_mocha.theme"]
-    type = "file"
-    url = "https://raw.githubusercontent.com/catppuccin/btop/main/themes/catppuccin_mocha.theme"
-    refreshPeriod = "720h"
-
 [".config/atuin/themes/catppuccin-mocha-mauve.toml"]
     type = "file"
     url = "https://raw.githubusercontent.com/catppuccin/atuin/main/themes/mocha/catppuccin-mocha-mauve.toml"

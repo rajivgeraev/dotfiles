@@ -1,7 +1,6 @@
 # CLI tools
 brew "gh"
 brew "bat"
-brew "btop"
 brew "curl"
 brew "eza"
 brew "fzf"
