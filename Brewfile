@@ -19,6 +19,7 @@ brew "atuin"
 
 # Dotfiles manager
 brew "chezmoi"
+brew "age"
 
 # GUI
 cask "ghostty"

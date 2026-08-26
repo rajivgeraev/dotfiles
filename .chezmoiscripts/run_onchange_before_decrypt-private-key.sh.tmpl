@@ -1,0 +1,23 @@
+#!/bin/sh
+set -e
+
+# Расшифровывает age-ключ, которым зашифрованы все секреты в этом репозитории.
+#
+# Работает один раз на машину: пока ~/.config/chezmoi/key.txt существует,
+# парольная фраза больше не спрашивается. Отсюда before_ — ключ должен лежать
+# на диске раньше, чем chezmoi начнёт применять encrypted_* файлы.
+#
+# `chezmoi age decrypt` использует встроенную реализацию age, поэтому внешний
+# бинарник age на этом шаге не нужен — важно, ведь Brewfile может быть ещё
+# не установлен.
+#
+# key.txt.age: {{ include "key.txt.age" | sha256sum }}
+
+if [ ! -f "${HOME}/.config/chezmoi/key.txt" ]; then
+    echo "==> Расшифровка age-ключа (нужна парольная фраза)…"
+    mkdir -p "${HOME}/.config/chezmoi"
+    chezmoi age decrypt --output "${HOME}/.config/chezmoi/key.txt" \
+        --passphrase "{{ .chezmoi.sourceDir }}/key.txt.age"
+    chmod 600 "${HOME}/.config/chezmoi/key.txt"
+    echo "==> Ключ восстановлен: ~/.config/chezmoi/key.txt"
+fi
