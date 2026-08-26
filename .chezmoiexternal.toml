@@ -1,0 +1,30 @@
+# Темы Catppuccin Mocha, которые не поставляются пакетами и качаются из сети.
+#
+# Раньше их тянул run_once_install-themes.sh под `set -e`: одна сетевая ошибка
+# (а восстановление идёт в VM с медленной сетью) обрывала весь `chezmoi apply`,
+# не дойдя до остальных файлов и до set-macos-defaults.
+#
+# Здесь загрузку ведёт сам chezmoi: он кэширует файлы, сверяет их содержимое при
+# каждом apply/diff/verify и перекачивает не чаще refreshPeriod. Файлы маленькие
+# (единицы килобайт) — документация предостерегает от externals только для
+# крупных файлов и архивов.
+
+[".config/bat/themes/Catppuccin Mocha.tmTheme"]
+    type = "file"
+    url = "https://raw.githubusercontent.com/catppuccin/bat/main/themes/Catppuccin%20Mocha.tmTheme"
+    refreshPeriod = "720h"
+
+[".config/btop/themes/catppuccin_mocha.theme"]
+    type = "file"
+    url = "https://raw.githubusercontent.com/catppuccin/btop/main/themes/catppuccin_mocha.theme"
+    refreshPeriod = "720h"
+
+[".config/atuin/themes/catppuccin-mocha-mauve.toml"]
+    type = "file"
+    url = "https://raw.githubusercontent.com/catppuccin/atuin/main/themes/mocha/catppuccin-mocha-mauve.toml"
+    refreshPeriod = "720h"
+
+[".config/atuin/themes/catppuccin-mocha-blue.toml"]
+    type = "file"
+    url = "https://raw.githubusercontent.com/catppuccin/atuin/main/themes/mocha/catppuccin-mocha-blue.toml"
+    refreshPeriod = "720h"

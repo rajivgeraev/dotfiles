@@ -1,0 +1,13 @@
+# ~/.zshenv — читается ВСЕМИ zsh: интерактивными, скриптами, LaunchAgent'ами,
+# `zsh -c`, задачами из редакторов. Поэтому здесь только переменные окружения:
+# ни алиасов, ни вывода, ни медленных вызовов.
+
+# XDG Base Directory Specification.
+# Форма ${VAR:-default} уважает значение, если его выставили снаружи.
+export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
+export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
+
+# Выводится из XDG_CONFIG_HOME — строка обязана стоять ниже него.
+export ZDOTDIR="$XDG_CONFIG_HOME/zsh"

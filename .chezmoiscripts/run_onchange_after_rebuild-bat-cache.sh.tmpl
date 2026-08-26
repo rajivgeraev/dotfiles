@@ -1,0 +1,20 @@
+#!/bin/bash
+set -e
+
+# Пересобирает кеш bat, чтобы он подхватил темы и наш синтаксис.
+#
+# after_ — обязательно: и темы (через .chezmoiexternal.toml), и файл синтаксиса
+# должны уже лежать на диске к моменту сборки кеша. Раньше это работало только
+# потому, что имя install-themes.sh случайно сортировалось после .config/bat/… —
+# зависимость от ASCII-порядка, которая ломалась бы при переименовании.
+#
+# run_onchange_ вместо run_once_: хеши ниже — триггер. Меняется список тем или
+# файл синтаксиса — кеш пересобирается; в остальное время скрипт не запускается.
+#
+# externals: {{ include ".chezmoiexternal.toml" | sha256sum }}
+# syntaxes:  {{ include "dot_config/bat/syntaxes/zsh_plugins.sublime-syntax" | sha256sum }}
+
+command -v bat >/dev/null 2>&1 || exit 0
+
+echo "==> Пересборка кеша bat…"
+bat cache --build

@@ -1,0 +1,17 @@
+inline_height_shell_up_key_binding = 5
+enter_accept = false
+
+search_mode_shell_up_key_binding = "fuzzy"
+filter_mode_shell_up_key_binding = "session-preload"
+
+[dotfiles]
+enabled = true
+
+[sync]
+records = true
+
+[theme]
+name = "catppuccin-mocha-mauve"
+
+[ai]
+enabled = true

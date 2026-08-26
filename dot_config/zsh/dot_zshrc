@@ -1,0 +1,76 @@
+# XDG-переменные и ZDOTDIR объявлены в ~/.zshenv — он читается всеми zsh,
+# а .zshrc только интерактивными.
+
+unsetopt BEEP
+
+# History
+# История — это состояние, а не конфигурация, поэтому живёт в XDG_STATE_HOME,
+# а не рядом с конфигами в ~/.config.
+HISTFILE="$XDG_STATE_HOME/zsh/history"
+[[ -d ${HISTFILE:h} ]] || mkdir -p ${HISTFILE:h}
+HISTSIZE=50000                 # держим в памяти
+SAVEHIST=50000                 # пишем на диск
+
+setopt EXTENDED_HISTORY        # timestamp и длительность у каждой записи
+setopt SHARE_HISTORY           # общая история между сессиями (включает inc-append)
+setopt HIST_IGNORE_ALL_DUPS    # повтор вытесняет прежнюю запись
+setopt HIST_IGNORE_SPACE       # команда с ведущим пробелом не пишется вообще
+setopt HIST_SAVE_NO_DUPS       # не писать дубликаты в файл
+setopt HIST_REDUCE_BLANKS      # нормализовать пробелы внутри команды
+setopt HIST_VERIFY             # !! подставляет в строку, но не выполняет сразу
+
+# Подсистемы — явный список файлов из conf.d, а не безусловный glob по *.zsh:
+# только перечисленные здесь файлы реально подключаются, случайно оставленный
+# в conf.d файл сам по себе не подхватится, пока его не добавили в список.
+# Каждый файл сам решает, включаться ли (guard в первой строке — `command -v`
+# или `[[ -d ]]`), поэтому ВНУТРИ фазы порядок файлов не важен.
+#
+# Фаз две, и разделяет их compinit. Это не вкусовщина, а требование fzf-tab:
+# он обязан загрузиться после compinit, но раньше плагинов, оборачивающих
+# виджеты zle (autosuggestions, syntax-highlighting). Одной фазой это условие
+# невыполнимо, поэтому antidote разбит на antidote-pre / antidote-post.
+
+# --- Фаза 1: до compinit -----------------------------------------------------
+typeset -a zsh_conf_pre=(
+  antidote-pre
+)
+for f in $zsh_conf_pre; do
+  source "$ZDOTDIR/conf.d/$f.zsh"
+done
+
+# Completions — после фазы 1, чтобы fpath от antidote уже был полон.
+autoload -Uz compinit
+compinit
+
+zstyle ':completion:*' menu no   # требование fzf-tab: своё меню он рисует сам
+
+# --- Фаза 2: после compinit --------------------------------------------------
+typeset -a zsh_conf_post=(
+  antidote-post
+  atuin
+  zoxide
+  starship
+  bat
+  eza
+  rg
+)
+for f in $zsh_conf_post; do
+  source "$ZDOTDIR/conf.d/$f.zsh"
+done
+unset zsh_conf_pre zsh_conf_post f
+
+# Functions
+zconf() {
+    if [[ -z "$1" ]]; then
+        chezmoi edit ~/.config/zsh/.zshrc
+    elif [[ "$1" == "-r" ]]; then
+        source $ZDOTDIR/.zshrc
+    else
+        echo "Error: Unknown parameter '$1'."
+        return 1
+    fi
+}
+
+autoload -U select-word-style
+select-word-style bash
+

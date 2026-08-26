@@ -1,0 +1,13 @@
+# Фаза 1 из 2 — загружается ДО compinit (см. conf.d/antidote-pre.zsh).
+#
+# Здесь только плагины с функциями завершения. Аннотация kind:fpath говорит
+# antidote добавить каталог в fpath, но НЕ исполнять plugin-файл: завершения
+# собирает compinit, который .zshrc вызывает сразу после этой фазы.
+#
+# path:src — у zsh-completions функции лежат в src/, а не в корне репозитория.
+# У zsh-claudecode-completion файл _claude лежит в корне, поэтому path не нужен.
+# (Его plugin-файл дополнительно копирует _claude в кэш ради обхода проблемы
+# с симлинками — при kind:fpath это не требуется.)
+
+zsh-users/zsh-completions            path:src kind:fpath
+wbingli/zsh-claudecode-completion    kind:fpath

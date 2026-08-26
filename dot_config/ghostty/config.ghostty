@@ -1,0 +1,48 @@
+# --- Typography ---
+font-family = "JetBrainsMono Nerd Font"
+font-size = 14
+
+# --- Theme and Colors ---
+theme = Catppuccin Mocha
+
+# --- Window and Appearance ---
+background-opacity = 0.80
+background-blur-radius = 4
+macos-titlebar-style = transparent
+window-padding-x = 10
+window-padding-y = 8
+window-save-state = never
+window-theme = auto
+
+# --- Cursor ---
+cursor-style = bar
+cursor-style-blink = true
+cursor-opacity = 0.8
+
+# --- Mouse ---
+mouse-hide-while-typing = true
+copy-on-select = clipboard
+
+# --- Quick Terminal ---
+quick-terminal-position = top
+quick-terminal-screen = mouse
+quick-terminal-autohide = false
+quick-terminal-animation-duration = 0
+quick-terminal-size = 45%,70%
+
+# --- Security ---
+clipboard-paste-protection = true
+clipboard-paste-bracketed-safe = true
+
+# --- Shell Integration ---
+shell-integration = zsh
+shell-integration-features = sudo,ssh-env,ssh-terminfo
+
+# --- Performance ---
+scrollback-limit = 25000000
+bell-features = no-attention,no-title,no-border,no-system,no-audio
+
+# --- Keybind ---
+keybind = global:cmd+backslash=toggle_quick_terminal
+
+
