@@ -17,6 +17,8 @@ print_success() { echo -e "${GREEN}${BOLD}  ok $1${NC}"; }
 print_error()   { echo -e "${RED}${BOLD} err $1${NC}"; }
 print_info()    { echo -e "${BLUE}${BOLD}    $1${NC}"; }
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
 echo -e "${CYAN}${BOLD}🚀 Starting environment bootstrap...${NC}"
 
 # ==========================================
@@ -63,7 +65,7 @@ fi
 # 2. Homebrew Packages
 # ==========================================
 print_header "📦 Homebrew Packages"
-BREWFILE_PATH="$(cd "$(dirname "$0")" && pwd)/Brewfile"
+BREWFILE_PATH="$SCRIPT_DIR/Brewfile"
 if [[ ! -f "$BREWFILE_PATH" ]]; then
   print_error "Brewfile not found at $BREWFILE_PATH"
   exit 1
@@ -96,6 +98,18 @@ fi
 print_header "🏗️ Workspace"
 mkdir -p "$HOME/dev"
 print_success "$HOME/dev created"
+
+# ==========================================
+# 5. macOS Defaults
+# ==========================================
+# Последним шагом: настройки чисто косметические, и если что-то упадёт раньше,
+# разбираться нужно с установкой, а не с положением path bar в Finder.
+MACOS_DEFAULTS="$SCRIPT_DIR/macos-defaults.sh"
+if [[ -x "$MACOS_DEFAULTS" ]]; then
+  "$MACOS_DEFAULTS"
+else
+  print_error "macos-defaults.sh not found at $MACOS_DEFAULTS"
+fi
 
 # ==========================================
 # Done
