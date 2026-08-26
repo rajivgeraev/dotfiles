@@ -7,16 +7,19 @@ set -e
 # парольная фраза больше не спрашивается. Отсюда before_ — ключ должен лежать
 # на диске раньше, чем chezmoi начнёт применять encrypted_* файлы.
 #
-# `chezmoi age decrypt` использует встроенную реализацию age, поэтому внешний
-# бинарник age на этом шаге не нужен — важно, ведь Brewfile может быть ещё
-# не установлен.
+# `age decrypt` идёт через встроенную реализацию, поэтому внешний бинарник age
+# на этом шаге не нужен — важно, ведь Brewfile может быть ещё не установлен.
+#
+# Вызов идёт по .chezmoi.executable, а не по имени `chezmoi`: при установке
+# однострочником бинарник кладётся в ./bin, которого нет в PATH, и простое
+# `chezmoi` внутри скрипта падает с "command not found" (exit 127).
 #
 # key.txt.age: {{ include "key.txt.age" | sha256sum }}
 
 if [ ! -f "${HOME}/.config/chezmoi/key.txt" ]; then
     echo "==> Расшифровка age-ключа (нужна парольная фраза)…"
     mkdir -p "${HOME}/.config/chezmoi"
-    chezmoi age decrypt --output "${HOME}/.config/chezmoi/key.txt" \
+    "{{ .chezmoi.executable }}" age decrypt --output "${HOME}/.config/chezmoi/key.txt" \
         --passphrase "{{ .chezmoi.sourceDir }}/key.txt.age"
     chmod 600 "${HOME}/.config/chezmoi/key.txt"
     echo "==> Ключ восстановлен: ~/.config/chezmoi/key.txt"
