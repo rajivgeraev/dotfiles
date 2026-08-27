@@ -26,7 +26,7 @@ My personal macOS development environment configuration, managed with [chezmoi](
 **This script will reset your terminal and shell configuration!**
 
 Before running, please:
-1. Backup your existing configs: `~/.zshrc`, `~/.zshenv`, `~/.gitconfig`, `~/.config/ghostty/`
+1. Backup your existing configs: `~/.zshenv`, `~/.config/zsh/`, `~/.config/git/`, `~/.config/ghostty/`
 2. Understand what this script does (review `bootstrap.sh` and the directory structure above)
 3. I am not responsible for any data loss or configuration issues
 
@@ -34,167 +34,213 @@ Before running, please:
 
 ## Quick Setup (For a fresh Mac)
 
-Thanks to [chezmoi](https://chezmoi.io/), you can bootstrap a completely new, empty machine with just two commands.
-
-**1. Initialize and apply dotfiles**
-
-This uses chezmoi's official one-liner to download the binary, clone this repository, and apply the configuration files:
+A completely new, empty machine is set up with a single command. `bootstrap.sh` is
+self-contained: it installs chezmoi and clones this repository itself.
 
 ```bash
-sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply rajivgeraev
+curl -fsSL https://raw.githubusercontent.com/rajivgeraev/dotfiles/main/bootstrap.sh -o /tmp/bootstrap.sh && zsh /tmp/bootstrap.sh
 ```
 
-**2. Run the bootstrap script**
+Download it with `-o` rather than piping into `zsh`: a pipe hands the script's own
+text to `read`, which breaks the step that waits for the Xcode CLT installer.
 
-Now that the repository is cloned to your machine, run the setup script to install Homebrew, tools, runtimes, and AI agents:
+Two moments need you at the keyboard: the Xcode Command Line Tools dialog (click
+Install, then press Enter in the terminal), and the age passphrase, asked once
+when the dotfiles are applied.
 
-```bash
-~/.local/share/chezmoi/bootstrap.sh
-```
-
-*(Note: `chezmoi init` uses HTTPS by default. If you plan to push changes back to GitHub later, update the git remote to SSH inside `~/.local/share/chezmoi` after generating your SSH keys.)*
+*(Note: the repository is cloned over HTTPS. If you plan to push changes back to
+GitHub later, switch the git remote to SSH inside `~/.local/share/chezmoi` — the
+key is restored by chezmoi as part of the run.)*
 
 ### What `bootstrap.sh` does
 
-1. Installs **Homebrew** (if missing)
-2. Installs core tools, runtimes, and applications via **Brewfile**
-3. Configures global **Git** settings
-4. Sets up **Node.js** (via `fnm`), enables `pnpm`, and installs **AI agents**
-5. Installs **Bun** and **uv** (Python manager)
-6. Configures **Ghostty** terminal
+1. Installs **Xcode Command Line Tools** (if missing)
+2. Installs **Homebrew** (if missing)
+3. Installs **chezmoi**, then clones this repository with `chezmoi init` — without applying it yet
+4. Installs tools and applications via **Brewfile**
+5. Applies the dotfiles: decrypts the age key, lays out configs and secrets, runs the repository scripts
+6. Creates the `~/dev` workspace
+7. Applies **macOS defaults** via `macos-defaults.sh`
+
+The order is deliberate. Applying before the Brewfile would run the repository's
+`run_onchange` scripts against a machine with nothing installed — the bat cache
+script would find no `bat`, mark itself done, and never run again.
+
+Running `./bootstrap.sh` from an already cloned repository works too: it uses that
+directory as-is instead of cloning.
+
+### After the bootstrap
+
+Three things cannot be automated and are left to do by hand.
+
+**1. Sign in to Atuin.** The encryption key is restored with the other secrets, but
+the session is not — the CLI has no token-based login, and the account password is
+deliberately not stored here. Without this step the cloud history never arrives, no
+matter how long you wait:
+
+```bash
+atuin login -u rajivgeraev -k "$(cat ~/.local/share/atuin/key)"
+atuin sync
+```
+
+The password is asked interactively. `atuin login` is supposed to sync on its own,
+but only at the next periodic sync — up to 5 minutes later; the explicit `atuin sync`
+pulls everything right away.
+
+**2. Grant Karabiner-Elements its macOS permissions.** The rules are already in
+place, but Accessibility and Driver Extensions can only be granted through System
+Settings — see [`karabiner-recovery.md`](karabiner-recovery.md).
+
+**3. Open Ghostty.** On first launch antidote downloads the zsh plugins.
 
 ## Tech Stack & Tools
 
-- **Shell**: Zsh (modular config, Homebrew plugins)
-- **Terminal**: [Ghostty](https://ghostty.org/) (Maple Mono NF CN)
+- **Shell**: Zsh (modular config, plugins via [antidote](https://antidote.sh/))
+- **Terminal**: [Ghostty](https://ghostty.org/) (JetBrainsMono Nerd Font, Catppuccin Mocha)
 - **Prompt**: [Starship](https://starship.rs/) (nerd font, multi-language)
-- **Runtimes**: Node.js (fnm), Go, Rust, Bun, Python (uv)
-- **Editor**: Cursor / Zed
-- **AI Tools**: Claude Code, Gemini CLI, OpenAI Codex, amp, opencode
+- **Editor**: [Zed](https://zed.dev/)
+- **AI Tools**: Claude Code
 - **Core CLI Tools**:
   - `zoxide` (smart `cd`)
   - `eza` (modern `ls`)
   - `bat` (modern `cat`)
-  - `fzf` + `fd` + `ripgrep` (fuzzy search)
-  - `lazygit` (Git TUI)
-  - `tmux` (terminal multiplexer)
+  - `atuin` (shell history, synced and end-to-end encrypted)
+  - `fzf` + `ripgrep` (fuzzy search)
+  - `yazi` (terminal file manager)
   - `gh` (GitHub CLI)
-  - `git-delta` (syntax-highlighting pager for diff)
+  - `rclone` (cloud storage sync)
+  - `age` (file encryption)
+- **Keyboard**: Karabiner-Elements (Cmd taps switch input source, Caps Lock disabled)
 
 ## Quick Reference
 
 ```bash
-chezmoi apply           # Apply dotfiles to $HOME
-chezmoi update          # Pull latest & apply
-chezmoi diff            # Preview changes
-chezmoi edit ~/.zshrc   # Edit a managed file
+chezmoi apply                     # Apply dotfiles to $HOME
+chezmoi update                    # Pull latest & apply
+chezmoi diff                      # Preview changes
+chezmoi edit ~/.config/zsh/.zshrc # Edit a managed file
+chezmoi add --encrypt ~/.ssh/key  # Track a new secret, encrypted
 ```
 
 ## Directory Structure
 
 ```text
 .
-├── bin/
-│   └── chezmoi                    # chezmoi binary (self-managed)
-├── bootstrap.sh                   # Environment setup script
+├── bootstrap.sh                   # Environment setup script (entry point)
+├── macos-defaults.sh              # macOS system settings, run last by bootstrap
+├── sync-mac.sh                    # One-way rclone sync to Hetzner Storage Box
 ├── Brewfile                       # Homebrew dependencies
-├── dot_zshrc                      # Zsh entry point
-├── dot_zshenv                     # Zsh environment variables
-├── dot_zprofile                   # Zsh login settings
-├── dot_gitignore_global           # Global git ignores
+├── karabiner-recovery.md          # How to rebuild the keyboard rules
+├── key.txt.age                    # age key, protected by a passphrase
+├── .chezmoiexternal.toml          # Catppuccin themes fetched from upstream
+├── .chezmoiscripts/
+│   ├── run_onchange_before_decrypt-private-key.sh.tmpl   # Restores the age key
+│   └── run_onchange_after_rebuild-bat-cache.sh.tmpl      # Rebuilds the bat cache
+├── dot_zshenv                     # XDG variables and ZDOTDIR
 ├── dot_config/
-│   ├── ghostty/config             # Ghostty terminal config
-│   ├── starship.toml              # Starship prompt config
+│   ├── bat/                       # Config + custom zsh-plugins syntax
+│   ├── ghostty/config.ghostty     # Ghostty terminal config
+│   ├── git/                       # config.tmpl + global ignore
+│   ├── private_atuin/             # Shell history settings
+│   ├── private_karabiner/         # Keyboard rules
+│   ├── rclone/                    # encrypted
+│   ├── ripgrep/config             # Search defaults
+│   ├── starship/starship.toml     # Prompt config
+│   ├── zed/                       # Editor settings
 │   └── zsh/
-│       ├── completions/           # Zsh completion scripts
-│       ├── rc.d/                  # Zsh initialization scripts (numeric order)
-│       │   ├── 00-init.zsh          # Tool init: evalcache, starship, fnm
-│       │   ├── 05-compinit.zsh      # Zsh completion initialization
-│       │   ├── 10-ai-claude.zsh     # Claude wrapper + provider config
-│       │   ├── 11-ai-others.zsh     # Codex / Gemini / Qwen wrappers
-│       │   ├── 20-settings.zsh      # Zsh options
-│       │   ├── 25-fzf.zsh           # fzf keybindings
-│       │   ├── 30-aliases.zsh       # Git & system aliases
-│       │   ├── 90-plugins.zsh       # Plugin loading
-│       │   ├── 95-tips.zsh          # Shell tips
-│       │   └── 99-zoxide.zsh        # zoxide init
-│       └── dot_claude-providers.toml  # Claude API provider configs
-└── dot_claude/
-    ├── settings.json              # Claude Code settings & plugins
-    └── executable_statusline.sh   # Custom status line
+│       ├── dot_zshrc              # Zsh entry point
+│       ├── dot_zprofile           # Homebrew shellenv
+│       ├── dot_zsh_plugins.txt    # antidote, phase 1 (before compinit)
+│       ├── dot_zsh_plugins_post.txt # antidote, phase 2 (after compinit)
+│       └── conf.d/                # Subsystem modules, loaded by explicit list
+├── dot_local/share/private_atuin/ # encrypted
+├── private_dot_ssh/               # encrypted
+└── dot_claude/settings.json       # Claude Code settings
 ```
 
 ## Configuration Highlights
 
 ### Zsh Modular Setup
 
-Load order: `dot_zshrc` → `dot_config/zsh/rc.d/*.zsh` (00-99)
+Load order: `~/.zshenv` (XDG variables, `ZDOTDIR`) → `dot_config/zsh/dot_zshrc` →
+modules from `conf.d/`.
 
-| Script | Purpose |
+Modules are listed explicitly in `.zshrc` rather than globbed, so a file left in
+`conf.d/` does nothing until it is added to the list. Each module guards itself
+with `command -v`, so a missing tool is skipped instead of erroring.
+
+Loading happens in **two phases**, split by `compinit`. This is a requirement of
+fzf-tab: it must load after the completion system exists, but before the plugins
+that wrap zle widgets. Hence antidote is split in two as well.
+
+| Module | Purpose |
 |--------|---------|
-| `00-init.zsh` | evalcache, starship, fnm |
-| `05-compinit.zsh` | Zsh completion initialization |
-| `10-ai-claude.zsh` | Claude wrapper + provider TOML loader + completions |
-| `11-ai-others.zsh` | Codex / Gemini / Qwen CLI wrappers |
-| `20-settings.zsh` | Zsh options (history, completion) |
-| `25-fzf.zsh` | fzf keybindings & preview |
-| `30-aliases.zsh` | Git aliases, system shortcuts |
-| `90-plugins.zsh` | zsh-autosuggestions, syntax-highlighting, fzf-tab |
-| `95-tips.zsh` | Shell tips and helpers |
-| `99-zoxide.zsh` | Smart `cd` integration |
+| `antidote-pre.zsh` | Phase 1: antidote itself + completion plugins (`kind:fpath`) |
+| `antidote-post.zsh` | Phase 2: everything that needs a ready completion system |
+| `atuin.zsh` | Shell history |
+| `zoxide.zsh` | Smart `cd` |
+| `starship.zsh` | Prompt |
+| `bat.zsh` | `cat` alias + fzf-tab preview |
+| `eza.zsh` | `ls` / `ll` aliases |
+| `rg.zsh` | Points ripgrep at its config file |
 
-Zsh plugins installed via Homebrew: `zsh-autosuggestions`, `zsh-syntax-highlighting`, `zsh-history-substring-search`, `zsh-autopair`, `zsh-you-should-use`, `fzf-tab`, `evalcache`.
+Zsh plugins via antidote — phase 1: `zsh-completions`, `zsh-claudecode-completion`.
+Phase 2, in order: `fzf-tab`, `zsh-autopair`, `zsh-window-title`,
+`zsh-autosuggestions`, `zsh-syntax-highlighting`.
+
+History lives in `$XDG_STATE_HOME/zsh/history` — it is state, not configuration.
 
 ### Claude Code
 
-- Custom statusline showing model, directory, git branch
-- Claude API provider configs in `dot_claude-providers.toml` (15+ providers including GLM, Moonshot, Kimi, OpenRouter, and local cliproxyapi proxies)
-- Enabled plugins: git, gitflow, github, exa-mcp-server, superpowers, code-context, skill-creator, acpx, codex
-- Auto memory enabled; model defaults to `opus`
+- Model defaults to `opus`, interface language Russian, dark theme
+- Permissions default to `auto`; voice input enabled in hold mode
+- Only `settings.json` is tracked — sessions, cache and history stay local
 
 ### Terminal (Ghostty)
 
-- Font: Maple Mono NF CN
-- Theme: Apple System Colors Light / Cursor Dark (auto-switches with system appearance)
-- Translucent background with macOS glass blur
-- Quick terminal on top of screen with fast animation
-- Shell integration and command-finish notifications
+- Font: JetBrainsMono Nerd Font
+- Theme: Catppuccin Mocha
+- Translucent background with macOS blur
+- Quick terminal on top of the screen, toggled with `Cmd+\` globally
+- Shell integration for zsh
 
 ## Secrets Management
 
-Sensitive information (API keys, tokens) is excluded from this repository.
-Create `~/.config/zsh/.secret` manually to store your private environment variables:
+Secrets live in this repository, but only as ciphertext — encrypted with
+[age](https://age-encryption.org), following chezmoi's own recipe. Nothing is
+stored in the clear, not even the ssh config or the public key.
 
-```zsh
-# ~/.config/zsh/.secret
-export GITHUB_TOKEN="your_token"
-export ANTHROPIC_API_KEY="your_token"
+The age key itself is encrypted with a passphrase and committed as `key.txt.age`.
+On a new machine, `run_onchange_before_decrypt-private-key.sh` decrypts it into
+`~/.config/chezmoi/key.txt`, asking for the passphrase once. Everything after that
+is automatic: chezmoi puts each secret at its path with the right mode, so there is
+nothing to copy by hand and no `chmod` to remember.
+
+Currently encrypted:
+
+| File | Restored to |
+|------|-------------|
+| `private_dot_ssh/encrypted_private_id_ed25519_gh.age` | `~/.ssh/id_ed25519_gh` (0600) |
+| `private_dot_ssh/encrypted_id_ed25519_gh.pub.age` | `~/.ssh/id_ed25519_gh.pub` |
+| `private_dot_ssh/encrypted_config.age` | `~/.ssh/config` |
+| `dot_config/rclone/encrypted_private_rclone.conf.age` | `~/.config/rclone/rclone.conf` (0600) |
+| `dot_local/share/private_atuin/encrypted_private_key.age` | `~/.local/share/atuin/key` (0600) |
+
+To track a new secret:
+
+```bash
+chezmoi add --encrypt ~/.config/something/secret.conf
 ```
+
+**The passphrase is the single point of failure.** Write it down somewhere outside
+this repository — losing it means losing the Atuin key, which cannot be
+regenerated. The decrypted `~/.config/chezmoi/key.txt` must never be committed.
 
 ## AI Integration
 
-This setup is optimized for AI-assisted development:
-
-- [Claude Code](https://github.com/anthropics/claude-code) — custom statusline, multi-provider API fallback
-- [Cursor](https://cursor.sh/) — primary editor
-- Gemini CLI — Google AI
-- OpenAI Codex — CLI coding assistant
-- amp — AI coding agent
-- opencode — AI coding agent
-
-### Enabled Claude Plugins
-
-| Plugin | Purpose |
-|--------|---------|
-| git | Git workflow automation |
-| gitflow | Git-flow operations |
-| github | GitHub PR and issue management |
-| exa-mcp-server | Web search & code examples |
-| superpowers | Advanced agent workflows |
-| code-context | Codebase research |
-| skill-creator | Custom skill creation |
-| acpx | Agent-to-agent communication |
-| codex | OpenAI Codex integration |
+- [Claude Code](https://github.com/anthropics/claude-code) — settings tracked in `dot_claude/settings.json`
+- Zsh completions for `claude` come from the `zsh-claudecode-completion` plugin
+- `CLAUDE.md` in the repository root documents the layout for Claude Code itself
 
 ## Updating
 
